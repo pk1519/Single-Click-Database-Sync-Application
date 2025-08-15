@@ -1,0 +1,465 @@
+{% extends "base.html" %}
+
+{% block title %}MySQL Database Transfer - Home{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 offset-lg-2">
+        <!-- Main Transfer Card -->
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h3 class="card-title mb-0">
+                    <i class="fas fa-exchange-alt"></i> Database Transfer
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="text-center">
+                    <h5 class="mb-4">Transfer data between MySQL databases with one click</h5>
+                    
+                    {% if not config_exists %}
+                        <div class="alert alert-warning" role="alert">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>Configuration Missing!</strong> 
+                            Please create a <code>config.json</code> file before starting the transfer.
+                            <a href="{{ url_for('view_config') }}" class="alert-link">View Configuration</a>
+                        </div>
+                    {% endif %}
+                    
+                    <!-- Database and Table Selection Form -->
+                    <form method="POST" action="{{ url_for('start_transfer') }}" id="transferForm" class="needs-validation" novalidate>
+                        {% if config_exists and not connection_error %}
+                            <div class="row mb-4">
+                                <!-- Source Database -->
+                                <div class="col-md-4">
+                                    <label for="source_database" class="form-label">
+                                        <i class="fas fa-database text-primary"></i> Source Database
+                                    </label>
+                                    <select class="form-select" id="source_database" name="source_database" required>
+                                        <option value="">Select source database...</option>
+                                        {% for db in databases %}
+                                            <option value="{{ db }}">{{ db }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="invalid-feedback">
+                                        Please select a source database.
+                                    </div>
+                                </div>
+                                
+                                <!-- Target Database -->
+                                <div class="col-md-4">
+                                    <label for="target_database" class="form-label">
+                                        <i class="fas fa-database text-success"></i> Target Database
+                                    </label>
+                                    <select class="form-select" id="target_database" name="target_database" required>
+                                        <option value="">Select target database...</option>
+                                        {% for db in databases %}
+                                            <option value="{{ db }}">{{ db }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="invalid-feedback">
+                                        Please select a target database.
+                                    </div>
+                                </div>
+                                
+                                <!-- Table Selection -->
+                                <div class="col-md-4">
+                                    <label for="table_name" class="form-label">
+                                        <i class="fas fa-table text-info"></i> Table
+                                    </label>
+                                    <select class="form-select" id="table_name" name="table_name" required disabled>
+                                        <option value="">Select source database first...</option>
+                                    </select>
+                                    <div class="invalid-feedback">
+                                        Please select a table to transfer.
+                                    </div>
+                                    <small class="form-text text-muted" id="tableInfo"></small>
+                                </div>
+                            </div>
+                            
+                            <!-- Transfer Button -->
+                            <div class="text-center">
+                                <button type="submit" 
+                                        class="btn btn-success btn-transfer" 
+                                        id="transferBtn"
+                                        {% if transfer_status.running %}disabled{% endif %}>
+                                    <span id="btnIcon">
+                                        {% if transfer_status.running %}
+                                            <div class="spinner-border spinner-border-sm" role="status">
+                                                <span class="visually-hidden">Loading...</span>
+                                            </div>
+                                        {% else %}
+                                            <i class="fas fa-exchange-alt"></i>
+                                        {% endif %}
+                                    </span>
+                                    <span id="btnText">
+                                        {% if transfer_status.running %}
+                                            Transfer in Progress...
+                                        {% else %}
+                                            Transfer Data
+                                        {% endif %}
+                                    </span>
+                                </button>
+                            </div>
+                            
+                        {% elif connection_error %}
+                            <div class="alert alert-danger" role="alert">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <strong>Connection Error:</strong> {{ connection_error }}
+                                <br><small>Please check your MySQL server and configuration.</small>
+                            </div>
+                            <div class="text-center">
+                                <button type="button" class="btn btn-outline-secondary" onclick="location.reload()">
+                                    <i class="fas fa-sync-alt"></i> Retry Connection
+                                </button>
+                            </div>
+                        {% endif %}
+                    </form>
+                    
+                    {% if not config_exists %}
+                        <p class="text-muted mt-3">
+                            <small>Create a configuration file to enable the transfer button</small>
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Card -->
+        {% if progress.status != 'idle' or transfer_status.last_result %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle"></i> Transfer Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- Current Status -->
+                <div class="mb-3">
+                    <strong>Current Status:</strong>
+                    <span id="currentStatus" class="ms-2 
+                        {% if progress.status == 'running' %}status-running
+                        {% elif progress.status == 'completed' and progress.result and progress.result.status == 'success' %}status-success
+                        {% elif progress.status == 'error' or (progress.result and progress.result.status == 'error') %}status-error
+                        {% else %}status-warning
+                        {% endif %}">
+                        <i class="fas fa-
+                            {%- if progress.status == 'running' -%}spinner fa-spin
+                            {%- elif progress.status == 'completed' and progress.result and progress.result.status == 'success' -%}check-circle
+                            {%- elif progress.status == 'error' or (progress.result and progress.result.status == 'error') -%}times-circle
+                            {%- else -%}exclamation-circle
+                            {%- endif -%}"></i>
+                        <span id="statusMessage">{{ progress.message or 'Ready' }}</span>
+                    </span>
+                </div>
+
+                <!-- Progress Bar -->
+                {% if progress.status == 'running' and progress.total_tables > 0 %}
+                <div class="progress-container">
+                    <div class="d-flex justify-content-between mb-2">
+                        <small>Progress</small>
+                        <small id="progressText">{{ progress.tables_completed }}/{{ progress.total_tables }} tables</small>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar bg-success" 
+                             role="progressbar" 
+                             id="progressBar"
+                             style="width: {{ (progress.tables_completed / progress.total_tables * 100) if progress.total_tables > 0 else 0 }}%">
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Last Transfer Results -->
+                {% if transfer_status.last_result %}
+                <div class="mt-3">
+                    <strong>Last Transfer:</strong>
+                    <div class="mt-2">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <small class="text-muted">Status:</small>
+                                <span class="d-block 
+                                    {% if transfer_status.last_result.status == 'success' %}text-success
+                                    {% elif transfer_status.last_result.status == 'error' %}text-danger
+                                    {% else %}text-warning
+                                    {% endif %}">
+                                    {{ transfer_status.last_result.status|title }}
+                                </span>
+                            </div>
+                            {% if transfer_status.last_result.duration_seconds %}
+                            <div class="col-md-6">
+                                <small class="text-muted">Duration:</small>
+                                <span class="d-block">{{ "%.2f"|format(transfer_status.last_result.duration_seconds) }} seconds</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        {% if transfer_status.last_result.results %}
+                        <div class="mt-2">
+                            <small class="text-muted">Tables processed:</small>
+                            <div class="mt-1">
+                                {% for table_name, table_result in transfer_status.last_result.results.items() %}
+                                <span class="badge 
+                                    {% if table_result.status == 'success' %}bg-success
+                                    {% else %}bg-danger
+                                    {% endif %} me-1">
+                                    {{ table_name }}
+                                </span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Duration -->
+                {% if progress.duration_seconds %}
+                <div class="mt-2">
+                    <small class="text-muted">Duration: <span id="duration">{{ "%.2f"|format(progress.duration_seconds) }}</span> seconds</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Quick Links -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-link"></i> Quick Links
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-2">
+                        <a href="{{ url_for('view_config') }}" class="btn btn-outline-primary w-100">
+                            <i class="fas fa-cog"></i> Configuration
+                        </a>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <a href="{{ url_for('view_logs') }}" class="btn btn-outline-info w-100">
+                            <i class="fas fa-file-alt"></i> View Logs
+                        </a>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <button onclick="refreshStatus()" class="btn btn-outline-secondary w-100">
+                            <i class="fas fa-sync-alt"></i> Refresh Status
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-refresh status when transfer is running
+function refreshStatus() {
+    fetch('{{ url_for("get_status") }}')
+        .then(response => response.json())
+        .then(data => {
+            const progress = data.progress;
+            const transferStatus = data.transfer_status;
+            
+            // Update button state
+            const btn = document.getElementById('transferBtn');
+            const btnIcon = document.getElementById('btnIcon');
+            const btnText = document.getElementById('btnText');
+            
+            if (transferStatus.running) {
+                btn.disabled = true;
+                btnIcon.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div>';
+                btnText.textContent = 'Transfer in Progress...';
+            } else {
+                btn.disabled = {{ 'true' if not config_exists else 'false' }};
+                btnIcon.innerHTML = '<i class="fas fa-play"></i>';
+                btnText.textContent = 'Transfer Data';
+            }
+            
+            // Update status message
+            const statusMessage = document.getElementById('statusMessage');
+            if (statusMessage) {
+                statusMessage.textContent = progress.message || 'Ready';
+            }
+            
+            // Update progress bar
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            if (progressBar && progress.total_tables > 0) {
+                const percentage = (progress.tables_completed / progress.total_tables) * 100;
+                progressBar.style.width = percentage + '%';
+                if (progressText) {
+                    progressText.textContent = `${progress.tables_completed}/${progress.total_tables} tables`;
+                }
+            }
+            
+            // Update duration
+            const duration = document.getElementById('duration');
+            if (duration && progress.duration_seconds) {
+                duration.textContent = progress.duration_seconds.toFixed(2);
+            }
+            
+            // Refresh page if transfer just completed
+            if (!transferStatus.running && 
+                (progress.status === 'completed' || progress.status === 'error') && 
+                !document.getElementById('currentStatus').textContent.includes('completed')) {
+                location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching status:', error);
+        });
+}
+
+// Auto-refresh every 2 seconds when transfer is running
+let refreshInterval;
+
+function startAutoRefresh() {
+    if ({{ 'true' if transfer_status.running else 'false' }}) {
+        refreshInterval = setInterval(refreshStatus, 2000);
+    }
+}
+
+function stopAutoRefresh() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+    }
+}
+
+// Start auto-refresh on page load
+document.addEventListener('DOMContentLoaded', function() {
+    startAutoRefresh();
+});
+
+// Stop auto-refresh when page is hidden
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        stopAutoRefresh();
+    } else {
+        startAutoRefresh();
+    }
+});
+
+// Handle source database selection to load tables
+document.getElementById('source_database')?.addEventListener('change', function() {
+    const sourceDb = this.value;
+    const tableSelect = document.getElementById('table_name');
+    const tableInfo = document.getElementById('tableInfo');
+    
+    if (sourceDb) {
+        // Enable table dropdown and show loading state
+        tableSelect.disabled = false;
+        tableSelect.innerHTML = '<option value="">Loading tables...</option>';
+        tableInfo.textContent = '';
+        
+        // Fetch tables for selected database
+        fetch(`/get_tables/${sourceDb}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    tableSelect.innerHTML = '<option value="">Error loading tables</option>';
+                    tableInfo.textContent = `Error: ${data.error}`;
+                    tableInfo.className = 'form-text text-danger';
+                } else {
+                    // Populate table dropdown
+                    tableSelect.innerHTML = '<option value="">Select a table...</option>';
+                    data.tables.forEach(table => {
+                        const option = document.createElement('option');
+                        option.value = table.name;
+                        option.textContent = `${table.name} (${table.row_count} rows)`;
+                        tableSelect.appendChild(option);
+                    });
+                    tableInfo.textContent = `${data.tables.length} tables available`;
+                    tableInfo.className = 'form-text text-muted';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching tables:', error);
+                tableSelect.innerHTML = '<option value="">Error loading tables</option>';
+                tableInfo.textContent = 'Failed to load tables';
+                tableInfo.className = 'form-text text-danger';
+            });
+    } else {
+        // Reset table dropdown when no database selected
+        tableSelect.disabled = true;
+        tableSelect.innerHTML = '<option value="">Select source database first...</option>';
+        tableInfo.textContent = '';
+    }
+});
+
+// Handle table selection to show info
+document.getElementById('table_name')?.addEventListener('change', function() {
+    const tableInfo = document.getElementById('tableInfo');
+    const selectedOption = this.selectedOptions[0];
+    
+    if (this.value && selectedOption) {
+        const tableName = this.value;
+        const rowCount = selectedOption.textContent.match(/\((\d+) rows\)/);
+        if (rowCount) {
+            tableInfo.textContent = `Selected: ${tableName} with ${rowCount[1]} rows`;
+            tableInfo.className = 'form-text text-info';
+        }
+    } else {
+        tableInfo.textContent = '';
+    }
+});
+
+// Form validation
+(function() {
+    'use strict';
+    const forms = document.querySelectorAll('.needs-validation');
+    Array.from(forms).forEach(function(form) {
+        form.addEventListener('submit', function(event) {
+            const sourceDb = document.getElementById('source_database').value;
+            const targetDb = document.getElementById('target_database').value;
+            const tableName = document.getElementById('table_name').value;
+            
+            // Check if source and target are the same
+            if (sourceDb && targetDb && sourceDb === targetDb) {
+                event.preventDefault();
+                event.stopPropagation();
+                alert('Source and target databases cannot be the same.');
+                return false;
+            }
+            
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            } else if (!{{ 'true' if transfer_status.running else 'false' }}) {
+                const confirmed = confirm(
+                    `Are you sure you want to transfer table '${tableName}' from '${sourceDb}' to '${targetDb}'?`
+                );
+                if (!confirmed) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+            }
+            
+            form.classList.add('was-validated');
+        }, false);
+    });
+})();
+
+// Prevent same database selection
+document.getElementById('target_database')?.addEventListener('change', function() {
+    const sourceDb = document.getElementById('source_database').value;
+    const targetDb = this.value;
+    
+    if (sourceDb && targetDb && sourceDb === targetDb) {
+        alert('Target database cannot be the same as source database.');
+        this.value = '';
+    }
+});
+
+document.getElementById('source_database')?.addEventListener('change', function() {
+    const sourceDb = this.value;
+    const targetSelect = document.getElementById('target_database');
+    
+    if (sourceDb && targetSelect.value === sourceDb) {
+        targetSelect.value = '';
+    }
+});
+</script>
+{% endblock %}

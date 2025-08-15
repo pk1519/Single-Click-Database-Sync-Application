@@ -1,0 +1,21 @@
+{
+  "source_db": {
+    "host": "localhost",
+    "port": 3306,
+    "database": "my_source_database",
+    "user": "mysql_user",
+    "password": "mysql_password"
+  },
+  "target_db": {
+    "host": "localhost",
+    "port": 3306,
+    "database": "my_target_database",
+    "user": "mysql_user",
+    "password": "mysql_password"
+  },
+  "tables": [
+    "users",
+    "products",
+    "orders"
+  ]
+}

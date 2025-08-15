@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Configuration - MySQL Database Transfer{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-10 offset-lg-1">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h3 class="card-title mb-0">
+                    <i class="fas fa-cog"></i> Configuration
+                </h3>
+            </div>
+            <div class="card-body">
+                {% if config_exists %}
+                    <div class="alert alert-success" role="alert">
+                        <i class="fas fa-check-circle"></i>
+                        Configuration file exists and is ready to use.
+                    </div>
+                    
+                    <h5>Current Configuration:</h5>
+                    <div class="config-container">{{ config_content }}</div>
+                {% else %}
+                    <div class="alert alert-warning" role="alert">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Configuration file <code>config.json</code> not found. Please create it to enable data transfer.
+                    </div>
+                    
+                    <h5>Configuration Template:</h5>
+                    <p class="text-muted">Create a <code>config.json</code> file in the project directory with the following structure:</p>
+                {% endif %}
+                
+                {% if not config_exists %}
+                <div class="config-container">
+{
+  "server": {
+    "host": "localhost",
+    "port": 3306,
+    "user": "your_mysql_username",
+    "password": "your_mysql_password"
+  }
+}
+                </div>
+                {% endif %}
+                
+                <div class="mt-4">
+                    <h5>Configuration Parameters:</h5>
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Description</th>
+                                <th>Required</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>server.host</code></td>
+                                <td>MySQL server hostname or IP address</td>
+                                <td><span class="badge bg-danger">Yes</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>server.port</code></td>
+                                <td>MySQL server port (default: 3306)</td>
+                                <td><span class="badge bg-secondary">No</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>server.user</code></td>
+                                <td>MySQL username with database access</td>
+                                <td><span class="badge bg-danger">Yes</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>server.password</code></td>
+                                <td>MySQL password for the user</td>
+                                <td><span class="badge bg-danger">Yes</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="mt-4">
+                    <h5>Important Notes:</h5>
+                    <ul class="list-group">
+                        <li class="list-group-item">
+                            <i class="fas fa-mouse-pointer text-primary"></i>
+                            Databases and tables are now selected dynamically through dropdown menus in the web interface
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-info-circle text-info"></i>
+                            Target tables will be created automatically if they don't exist
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-shield-alt text-success"></i>
+                            Duplicate entries are handled using <code>INSERT ... ON DUPLICATE KEY UPDATE</code>
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-users text-warning"></i>
+                            User needs SELECT permissions on source databases and CREATE/INSERT/UPDATE permissions on target databases
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-lock text-danger"></i>
+                            Store database credentials securely and never commit them to version control
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="mt-4 text-center">
+                    <a href="{{ url_for('index') }}" class="btn btn-primary">
+                        <i class="fas fa-arrow-left"></i> Back to Transfer
+                    </a>
+                    <button onclick="location.reload()" class="btn btn-secondary">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,22 @@
+# MySQL Database Transfer - Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# Flask web framework
+Flask==2.3.3
+Werkzeug==2.3.7
+
+# MySQL database connector
+mysql-connector-python==8.2.0
+
+# Additional utilities (already included with Python 3.6+)
+# json - Built-in JSON support
+# logging - Built-in logging support
+# threading - Built-in threading support
+# datetime - Built-in datetime support
+# typing - Built-in type hints support (Python 3.5+)
+
+# Development dependencies (optional)
+# Uncomment if you want to include development tools:
+# pytest==7.4.3         # For testing
+# flake8==6.1.0          # For code linting
+# black==23.10.1         # For code formatting

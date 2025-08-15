@@ -1,0 +1,22 @@
+{
+  "_comment": "MySQL Database Transfer Configuration Template",
+  "_instructions": "Copy this file to config.json and update with your MySQL server settings",
+  
+  "server": {
+    "host": "localhost",
+    "port": 3306,
+    "user": "your_mysql_username",
+    "password": "your_mysql_password"
+  },
+  
+  "_notes": {
+    "server": "Connection settings for your MySQL server",
+    "host": "MySQL server hostname or IP address (usually localhost)",
+    "port": "MySQL server port (default is 3306)",
+    "user": "MySQL username with access to databases",
+    "password": "MySQL password for the user",
+    "permissions": "User needs SELECT on source databases and CREATE, INSERT, UPDATE on target databases",
+    "security": "Never commit actual credentials to version control",
+    "usage": "Databases and tables are now selected dynamically through the web interface"
+  }
+}
