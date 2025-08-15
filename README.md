@@ -290,4 +290,6 @@ For issues, questions, or contributions:
 
 ---
 
+Contact me -- priyanshu345kumar@gmail.com
+
 **Happy data transferring! 🚀**
