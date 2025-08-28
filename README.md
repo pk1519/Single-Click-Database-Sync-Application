@@ -287,6 +287,9 @@ For issues, questions, or contributions:
   - Progress tracking and logging
   - Duplicate key handling
   - Automatic table creation
+  - 
+## screenshot
+<img width="1919" height="879" alt="image" src="https://github.com/user-attachments/assets/61e8a4c3-1219-4171-b352-e18e7b38987f" />
 
 ---
 
